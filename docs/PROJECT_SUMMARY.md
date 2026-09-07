@@ -2,8 +2,7 @@
 
 **Master-level Project** | **AI-Powered Autonomous Drone with Triple-Redundant Communication**
 
-**Version**: 1.0  
-**Date**: September 7, 2026  
+**Version**: 1.1 (Updated September 7, 2026)  
 **Repository**: https://github.com/toura8/autonomous-drone-station
 
 ---
@@ -32,7 +31,7 @@
 
 - **Triple-redundant communication** for mission-critical reliability
 - **AI-powered path planning** with obstacle avoidance
-- **Lightweight onboard perception** (OpenVINO + YOLOv8-Nano)
+- **Lightweight onboard perception** (OpenVINO + YOLOv8-Nano on LattePanda)
 - **Heavy-duty ground processing** (NVIDIA Jetson AGX ORIN 64GB)
 - **Long-distance autonomous missions** (10-50+ km)
 - **Automated failover mechanisms** with human override priority
@@ -51,23 +50,26 @@ Create an **open-source, educational platform** for autonomous aerial robotics t
 - Multi-layer redundancy for reliability
 
 ### Scope
-- **Onboard Intelligence** (LattePanda Sigma)
-  - Real-time perception (RealSense D435i)
-  - Lightweight AI inference (OpenVINO)
-  - Local navigation (Nav2)
-  - Multi-mode communication management
 
-- **Ground Intelligence** (NVIDIA Jetson AGX ORIN)
-  - Global path planning (OMPL RRT*)
-  - Video stream processing (TensorRT GPU-accelerated)
-  - Mission coordination
-  - LoRa telemetry aggregation (ChirpStack)
+#### **Onboard Drone** (LattePanda Sigma 32GB)
+- Real-time perception (RealSense D435i)
+- Lightweight AI inference (OpenVINO)
+- Local navigation (Nav2)
+- **Integrated 5G modem** (Quectel RM500Q-GL)
+- **Integrated LoRa module** (SX1262, 868 MHz)
 
-- **Flight Controller** (Cube Orange+ with ArduPilot)
-  - Motor control (6x ESC via PDB)
-  - Sensor fusion (IMU, barometer, magnetometer, GPS)
-  - Failsafe logic & return-to-home
-  - Telemetry streaming
+#### **Flight Controller** (Cube Orange+ with ArduPilot)
+- Motor control (6x ESC via PDB)
+- Sensor fusion (IMU, barometer, magnetometer, GPS)
+- Failsafe logic & return-to-home
+- **Herelink Air Unit attached** (MAVLink + SBUS)
+
+#### **Ground Station**
+- **NVIDIA Jetson AGX ORIN 64GB** - Global path planning (OMPL RRT*), video processing (TensorRT)
+- **ChirpStack LoRa Backend** - Telemetry aggregation
+- **Dragino Indoor Gateway** - Indoor LoRa reception
+- **RAK WisGate Edge Pro (RAK7289)** - Outdoor LoRa gateway
+- **Herelink Ground Unit HD BLUE** - Pilot station (FPV + emergency override)
 
 ### Success Criteria
 ✅ Autonomous takeoff, waypoint navigation, and landing  
@@ -89,22 +91,22 @@ Create an **open-source, educational platform** for autonomous aerial robotics t
 ├─────────────────────────────────────┤
 │                                     │
 │  RealSense D435i ──→ LattePanda     │
-│   (Perception)      Sigma (Brain)   │
-│       ↓                  ↓          │
+│   (Perception)      Sigma 32GB      │
+│       ↓             (Brain + Modems)│
 │   Depth USB-C       ┌───┼───┐      │
 │       │             │   │   │      │
 │       └─────────────┤   │   │      │
-│                 OpenVINO Nav2 LoRa  │
+│                OpenVINO Nav2 LoRa   │
 │                     │   │   │      │
 │                  ┌──┴───┴───┴──┐   │
 │                  ↓             ↓   │
 │            [5G Quectel]   [LoRa]   │
-│                  │             │   │
+│            (RM500Q-GL)             │
 │  ┌───────────────┼─────────────┤   │
 │  │               │             │   │
 │  ↓               ↓             ↓   │
 │ Cube Orange+ ← ROS 2 + MAVLink    │
-│ (Autopilot)                       │
+│ (Autopilot)  + Herelink Air Unit  │
 │  │                                │
 │  └──→ 6x T-Motor (FOC/DShot)      │
 │                                    │
@@ -117,12 +119,12 @@ Create an **open-source, educational platform** for autonomous aerial robotics t
 ├─────────────────────────────────────┤
 │                                     │
 │  [5G Gateway] ──→ Jetson AGX ORIN   │
-│  (VPN Husarnet)  (TensorRT + Nav2)  │
+│  (VPN Husarnet)  64GB (TensorRT)    │
 │                          │          │
 │  [LoRa Gateways] → ChirpStack ─→ │  │
-│  (RAK/Dragino)   (Local Server)  ���  │
+│  (Dragino + RAK)   (Local Server) ↓  │
 │                                  ↓  │
-│  [Herelink Ground] ← All telemetry  │
+│  [Herelink Ground HD BLUE] ← Telemetry
 │  (Pilot Screen)                     │
 │                                     │
 └─────────────────────────────────────┘
@@ -132,7 +134,7 @@ Create an **open-source, educational platform** for autonomous aerial robotics t
 
 | Priority | Mode | Range | Bandwidth | Latency | Purpose |
 |----------|------|-------|-----------|---------|---------|
-| 1 (Primary) | 5G Quectel | Unlimited | 50-100 Mbps | 20-50ms | HD video, ROS 2 topics |
+| 1 (Primary) | 5G Quectel RM500Q-GL | Unlimited | 50-100 Mbps | 20-50ms | HD video, ROS 2 topics |
 | 2 (Secondary) | LoRa SX1262 | 10-30 km | 50 kbps | 100-500ms | Failsafe, GPS position |
 | 3 (Tertiary) | Herelink | 20+ km | 2-4 Mbps | <200ms | FPV, human override |
 
@@ -151,11 +153,11 @@ Mode 3 Active → Herelink (human pilot takes direct control)
 
 ### Onboard (Drone)
 
-#### **LattePanda Sigma** (Primary Compute)
+#### **LattePanda Sigma 32GB** (Primary Compute)
 - **Role**: Onboard AI brain, mission control, communication arbitration
 - **CPU**: Intel Atom x6000 series (x86-64)
-- **RAM**: 8-16 GB LPDDR5
-- **Storage**: 128-512 GB NVMe SSD
+- **RAM**: 32 GB LPDDR5
+- **Storage**: 256-512 GB NVMe SSD
 - **OS**: Ubuntu 22.04 LTS + ROS 2 Humble
 - **Power**: 15W TDP
 - **Weight**: ~150g
@@ -164,6 +166,8 @@ Mode 3 Active → Herelink (human pilot takes direct control)
   - ROS 2 native support
   - Ethernet port (micro-ROS to Cube Orange+)
   - USB-C for RealSense camera
+  - **Integrated 5G Modem** (Quectel RM500Q-GL)
+  - **Integrated LoRa Module** (SX1262, 868 MHz)
 
 #### **Intel RealSense D435i** (Perception)
 - **Sensor Type**: RGB-D (Depth + Color + IR)
@@ -179,8 +183,9 @@ Mode 3 Active → Herelink (human pilot takes direct control)
 - **Sensors**: IMU, Barometer, Magnetometer, GPS
 - **Connectivity**:
   - Ethernet (micro-ROS bridge to LattePanda)
-  - UART (Telemetry to LoRa module)
+  - UART (Telemetry)
   - 8x PWM outputs (6 used for ESC, 2 spare)
+- **Attached**: **Herelink Air Unit** (MAVLink + SBUS)
 - **Weight**: ~50g
 - **Max Current**: 100A peak draw
 - **Key Functions**:
@@ -210,35 +215,30 @@ Mode 3 Active → Herelink (human pilot takes direct control)
 - **Weight per motor**: ~100g each
 - **Total thrust**: 24+ kg (4x gravity margin)
 
-#### **Modem 5G Quectel**
-- **Model**: Quectel RG500Q-EA or RG515Q-AE
-- **Connectivity**: USB 3.0
+#### **Modem 5G Quectel** (Integrated)
+- **Model**: **Quectel RM500Q-GL** (Industrial 4G/5G)
+- **Integrated into**: LattePanda Sigma 32GB
 - **Bands**: 5G NR (NSA/SA) + LTE multi-band
 - **Antennas**: 2x external MIMO
-- **Data Limit**: 1 TB per month
+- **Data Plan**: 1 TB per month available
 - **Latency**: 20-50ms typical
 - **Throughput**: 50-100 Mbps (5G), 20-30 Mbps (LTE fallback)
 - **Power**: ~5W active
-- **Weight**: ~150g with antennas
+- **Weight**: Integrated (no additional weight)
 
-#### **LoRa Module SX1262**
+#### **LoRa Module SX1262** (Integrated)
 - **Frequency**: 868 MHz (EU ISM band)
 - **Modulation**: LoRa (CSS)
+- **Integrated into**: LattePanda Sigma 32GB
 - **Max Payload**: 255 bytes (12 bytes telemetry)
 - **Range**: 10-30+ km line-of-sight
-- **Interface**: SPI to Arduino Uno
 - **Tx Power**: 14 dBm (max EU)
 - **Current Draw**: 140 mA (Tx), 10 mA (Rx)
-- **Weight**: ~50g
-
-#### **Arduino Uno** (LoRa Bridge)
-- **Role**: Interface between Cube Orange+ telemetry and LoRa module
-- **Connectivity**: UART to Cube (JST-GH), SPI to LoRa
-- **Power**: 5V from Cube telemetry rail
-- **Weight**: ~25g
+- **Weight**: Integrated (no additional weight)
 
 #### **Herelink Air Unit**
 - **Role**: Receive HD video + emergency control link
+- **Attachment**: **Mounted on Cube Orange+**
 - **Connectivity**: MAVLink + SBUS to Cube Orange+
 - **Video Input**: HDMI from FPV camera
 - **Radio**: 2.4 GHz (ISM)
@@ -266,29 +266,25 @@ Mode 3 Active → Herelink (human pilot takes direct control)
 - **Use Case**:
   - TensorRT GPU-accelerated video processing
   - Global path planning (OMPL RRT*)
-  - LoRa telemetry aggregation
+  - LoRa telemetry aggregation via ChirpStack
   - Mission coordination
 
-#### **Herelink Ground Unit (HD BLUE)**
-- **Display**: HD touchscreen
-- **Radio**: 2.4 GHz receiver
-- **Video**: Live HD stream + HUD overlay
-- **Control**: Joysticks + buttons
-- **Telemetry**: Real-time flight data
-- **Range**: 20+ km LOS
+#### **Dragino Indoor LoRa Gateway**
+- **Model**: Dragino DLOS8 or DLWS74
+- **Frequency**: 868 MHz (EU ISM band)
+- **Placement**: Indoor (office, building)
+- **Connectivity**: Ethernet or WiFi backhaul
+- **Coverage**: Building-level LoRa reception
+- **Role**: Receive drone telemetry indoors
 
-#### **LoRa Gateway Network**
-- **Outdoor**: RAK Wireless Outdoor Gateway
-  - IP67 enclosure
-  - Dual LoRa card (EU863-870)
-  - Ethernet backhaul
-  - Antenna gain: 2-5 dBi
-  
-- **Indoor**: Dragino DLOS8 or similar
-  - Desktop mounting
-  - Single LoRa card
-  - USB/Ethernet connectivity
-  - Antenna gain: 0 dBi
+#### **RAK WisGate Edge Pro (RAK7289)**
+- **Model**: RAK WisGate Edge Pro (RAK7289)
+- **Frequency**: 868 MHz (EU ISM band)
+- **Placement**: Outdoor (rooftop, mast)
+- **Connectivity**: Ethernet + optional 4G backhaul
+- **Coverage**: 10-30+ km long-distance outdoor
+- **Role**: Extended range LoRa reception for autonomous missions
+- **Features**: Industrial-grade, IP67 enclosure, antenna gain 2-5 dBi
 
 #### **ChirpStack Server** (Local LoRa Backend)
 - **Deployment**: Docker container on Jetson or separate Linux machine
@@ -301,11 +297,20 @@ Mode 3 Active → Herelink (human pilot takes direct control)
   - Alerting & downlink messages
   - API for application integration
 
+#### **Herelink Ground Unit HD BLUE**
+- **Display**: HD touchscreen
+- **Radio**: 2.4 GHz receiver
+- **Video**: Live HD stream + HUD overlay (FPV)
+- **Control**: Joysticks + buttons
+- **Telemetry**: Real-time flight data
+- **Range**: 20+ km LOS
+- **Role**: Pilot station with emergency override capability
+
 ---
 
 ## Communication Modes
 
-### Mode 1: 5G Quectel (Primary Link)
+### Mode 1: 5G Quectel RM500Q-GL (Primary Link)
 
 **Characteristics**:
 - **Bandwidth**: 50-100 Mbps (5G) / 20-30 Mbps (LTE)
@@ -316,7 +321,7 @@ Mode 3 Active → Herelink (human pilot takes direct control)
 
 **Network Stack**:
 ```
-LattePanda (5G Modem USB) 
+LattePanda Sigma (5G Modem Integrated) 
   ↓ (Linux network stack)
 Husarnet VPN Tunnel
   ↓ (Encrypted, secure)
@@ -367,7 +372,7 @@ Byte 10-11: CRC16 Checksum
 
 **Gateway Backend** (ChirpStack):
 ```
-Physical Gateway (RAK/Dragino)
+Physical Gateways (Dragino + RAK7289)
   ↓ (LoRa packet reception)
 ChirpStack Server (Localhost)
   ↓ (Frame decoding + routing)
@@ -401,10 +406,10 @@ LattePanda Sigma (Uplink commands)
 
 **Control Hierarchy**:
 ```
-Herelink Ground Unit (Pilot)
+Herelink Ground Unit HD BLUE (Pilot)
   ↓ (MAVLink + SBUS protocol)
-Herelink Air Unit (Drone)
-  ↓ (Direct Cube Orange connection)
+Herelink Air Unit (Attached to Cube Orange+)
+  ↓ (Direct Flight Controller connection)
 Cube Orange+ Flight Controller
   ↓ (Motor commands)
 6x ESC + Motors (Physical control)
@@ -422,7 +427,7 @@ Cube Orange+ Flight Controller
 
 ## AI & Perception
 
-### Onboard AI Pipeline (LattePanda Sigma)
+### Onboard AI Pipeline (LattePanda Sigma 32GB)
 
 **Objective**: Real-time obstacle detection for autonomous avoidance
 
@@ -467,7 +472,7 @@ Real-time detections @ 15 FPS
 
 ---
 
-### Ground AI Processing (Jetson AGX ORIN)
+### Ground AI Processing (Jetson AGX ORIN 64GB)
 
 **Objective**: High-resolution video analysis for mission planning & monitoring
 
@@ -508,7 +513,7 @@ Mission controller (update waypoints)
 
 ## Ground Station
 
-### NVIDIA Jetson AGX ORIN Role
+### NVIDIA Jetson AGX ORIN 64GB Role
 
 **Primary Responsibilities**:
 
@@ -568,7 +573,7 @@ Payload codec: (custom 12-byte telemetry)
 ```
 Drone LoRa Tx (12 bytes)
   ↓
-Gateway Reception (RAK/Dragino)
+Gateway Reception (Dragino + RAK7289)
   ↓
 ChirpStack NS Decoding
   ↓
@@ -583,7 +588,7 @@ Jetson Mission Controller
 
 ## Software Stack
 
-### Onboard (LattePanda Sigma)
+### Onboard (LattePanda Sigma 32GB)
 
 **OS & Runtime**:
 - Ubuntu 22.04 LTS (x86-64)
@@ -597,7 +602,6 @@ Jetson Mission Controller
 - `opencv-python`: Image processing
 - `pyrealsense2`: RealSense camera driver
 - `paho-mqtt`: MQTT for 5G telemetry
-- `pyserial`: Arduino LoRa interface
 - `husarnet`: VPN client
 
 **ROS 2 Nodes**:
@@ -626,9 +630,10 @@ Jetson Mission Controller
 **Configuration**:
 - 6 motor outputs (PWM)
 - micro-ROS Ethernet bridge
-- UART telemetry to Arduino (LoRa)
+- UART telemetry
 - GPS + compass calibration
 - Failsafe modes: RTH, Land, Loiter
+- Herelink Air Unit attached (MAVLink + SBUS)
 
 **Parameters** (key safety settings):
 - `BATTERY_FAILSAFE`: 10.5V (critical)
@@ -636,7 +641,7 @@ Jetson Mission Controller
 - `FS_TIMEOUT`: 30 seconds before failsafe
 - `LAND_SPEED`: 1.0 m/s (gentle landing)
 
-### Ground Station (Jetson AGX ORIN)
+### Ground Station (Jetson AGX ORIN 64GB)
 
 **OS & Runtime**:
 - Ubuntu 22.04 LTS (ARM64)
@@ -729,7 +734,6 @@ autonomous-drone-station/
 │   ├── flight_controller/
 │   │   ├── fc_bridge.py                # micro-ROS bridge to Cube Orange+
 │   │   ├── arducopter_config.param     # ArduPilot parameter file
-│   │   ├── lora_sender.ino             # Arduino LoRa interface
 │   │   └── failsafe_modes.txt          # RTH, land, loiter definitions
 │   │
 │   └── simulation/
@@ -758,12 +762,13 @@ autonomous-drone-station/
 ### Prerequisites
 
 **Hardware**:
-- LattePanda Sigma with Ubuntu 22.04 LTS + ROS 2 Humble
-- NVIDIA Jetson AGX ORIN with CUDA 12.2+
-- Cube Orange+ with ArduPilot
+- LattePanda Sigma 32GB with Ubuntu 22.04 LTS + ROS 2 Humble (integrated 5G + LoRa)
+- NVIDIA Jetson AGX ORIN 64GB with CUDA 12.2+
+- Cube Orange+ with Herelink Air Unit attached
 - 6x T-Motor motors + ESCs + PDB
 - 6S LiPo battery
-- All communication modules (5G, LoRa, Herelink)
+- Ground station: Dragino Indoor + RAK7289 gateways
+- Herelink Ground Unit HD BLUE
 
 **Software**:
 - ROS 2 Humble desktop installation
@@ -796,7 +801,7 @@ source install/setup.bash
 **4. Configure Hardware**
 
 Edit `config/drone_params.yaml`:
-- Set communication addresses (5G modem IP, LoRa gateway URL, Herelink port)
+- Set communication addresses (5G configuration, LoRa gateway URLs)
 - Calibrate camera intrinsics
 - Set geofence boundaries
 - Configure motor directions & ESC calibration
@@ -923,7 +928,7 @@ This project is designed for Master's-level students to achieve:
 - ☐ GPS lock acquired (10+ satellites)
 - ☐ All 6 motors spinning correctly
 - ☐ 5G modem connected to internet
-- ☐ LoRa gateway receiving signals
+- ☐ LoRa gateways receiving signals
 - ☐ Herelink video stream active
 - ☐ Geofence boundaries set
 - ☐ Mission file validated
@@ -968,6 +973,7 @@ This project is designed for Master's-level students to achieve:
 - **OpenVINO Docs**: https://docs.openvino.ai/
 - **TensorRT Guide**: https://docs.nvidia.com/deeplearning/tensorrt/
 - **LoRaWAN Spec**: https://lora-alliance.org/
+- **Quectel RM500Q-GL Docs**: https://www.quectel.com/product/rm500q-gl/
 
 ### Community Forums
 
@@ -987,7 +993,7 @@ This project is designed for Master's-level students to achieve:
 | **Target Audience** | Master's students in Robotics/AI |
 | **Complexity Level** | Advanced (600+ hours expected) |
 | **Team Size** | 4-6 students recommended |
-| **Version** | 1.0 (Initial Release) |
+| **Version** | 1.1 (Updated with integrated components) |
 | **Last Updated** | September 7, 2026 |
 | **Maintainer** | toura8 |
 
@@ -1005,7 +1011,7 @@ This project is designed for Master's-level students to achieve:
 - [ ] Assemble drone platform
 - [ ] Calibrate sensors (camera, IMU, compass)
 - [ ] Test motor control via Cube Orange+
-- [ ] Validate communication links
+- [ ] Validate communication links (5G, LoRa, Herelink)
 
 **Phase 3: AI & Perception** (Weeks 9-12)
 - [ ] Deploy YOLOv8-Nano on LattePanda
