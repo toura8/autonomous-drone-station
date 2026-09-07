@@ -1,0 +1,94 @@
+# Drone-Specific Parameters
+# Hexacopter with Cube Orange+
+
+drone:
+  frame_type: "hexacopter"  # 6x motors
+  name: "autonomous_hexadrone"
+  weight_kg: 8.5
+  max_speed_mps: 20.0
+  max_altitude_m: 500.0
+  battery:
+    type: "6S LiPo"
+    nominal_voltage: 22.2  # 6S = 6 * 3.7V
+    critical_voltage: 10.5  # 1.75V per cell
+    capacity_mah: 5000
+    discharge_rate: "100C"
+
+flight_controller:
+  type: "cube_orange_plus"
+  firmware: "ArduPilot"  # or PX4
+  communication:
+    primary: "ethernet"  # micro-ROS
+    secondary: "telemetry"  # UART to LoRa
+  sensors:
+    - imu
+    - barometer
+    - magnetometer
+    - gps
+
+perception:
+  camera_realsense:
+    model: "D435i"
+    streams:
+      depth:
+        resolution: [424, 240]
+        fps: 30
+      color:
+        resolution: [424, 240]
+        fps: 30
+      ir:
+        enabled: true
+  obstacle_detection:
+    model: "yolov8n"
+    backend: "openvino"
+    confidence_threshold: 0.5
+    inference_fps: 15
+
+communication:
+  # Mode 1: 5G
+  modem_5g:
+    type: "quectel_rg500q"
+    interface: "usb"
+    bands: ["5G_NR", "LTE"]
+    vpn: "husarnet"  # or zeroTier
+    data_limit_gb_per_month: 1000
+    
+  # Mode 2: LoRa
+  lora:
+    module: "SX1262"
+    frequency_hz: 868000000
+    bandwidth_hz: 125000
+    spreading_factor: 10
+    coding_rate: 1  # 4/5
+    tx_power_dbm: 14
+    interface: "uart"  # Arduino
+    gateway_type: ["rak_wireless_outdoor", "dragino_indoor"]
+    backend: "chirpstack"  # local server
+    
+  # Mode 3: Herelink
+  herelink:
+    ground_unit: "herelink_hd_blue"
+    video_resolution: "1920x1080"
+    video_fps: 30
+    video_bitrate_mbps: 4.0
+    radio_frequency_ghz: 2.4
+    range_km: 20
+
+autonomy:
+  level: 2  # 0=manual, 1=assisted, 2=autonomous
+  max_flight_time_seconds: 3600
+  max_distance_meters: 50000
+  geofence:
+    enabled: true
+    radius_meters: 1000
+  return_to_home:
+    enabled: true
+    altitude_m: 30
+    speed_mps: 5.0
+
+safety:
+  emergency_descent_rate_mps: 2.0
+  max_tilt_angle_deg: 45
+  watchdog_timeout_seconds: 5
+  battery_warning_voltage: 15.0  # 2.5V per cell
+  signal_loss_action: "return_to_home"

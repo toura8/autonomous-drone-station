@@ -1,0 +1,160 @@
+# ROS 2 Launch Configuration for Autonomous Drone Station
+# Target: LattePanda Sigma + NVIDIA Jetson AGX ORIN
+
+launch_arguments:
+  - name: drone_namespace
+    description: "Namespace for drone topics"
+    default_value: "autonomous_drone"
+  - name: simulation
+    description: "Run in simulation mode"
+    default_value: "false"
+  - name: log_level
+    description: "ROS 2 log level (DEBUG, INFO, WARN, ERROR)"
+    default_value: "INFO"
+
+nodes:
+  # ===== PERCEPTION NODE =====
+  - package: autonomous_drone_station
+    executable: perception_node.py
+    name: perception
+    namespace: "$(var drone_namespace)"
+    output: screen
+    parameters:
+      - log_level: "$(var log_level)"
+      - camera_type: "realsense"
+      - camera_id: 0
+      - depth_fps: 30
+      - depth_resolution: [424, 240]
+      - color_fps: 30
+      - color_resolution: [424, 240]
+      - enable_ir: true
+    remappings:
+      - from: "/camera/depth/image_raw"
+        to: "$(var drone_namespace)/camera/depth/image_raw"
+      - from: "/camera/color/image_raw"
+        to: "$(var drone_namespace)/camera/color/image_raw"
+
+  # ===== OBSTACLE DETECTION NODE =====
+  - package: autonomous_drone_station
+    executable: obstacle_detector.py
+    name: obstacle_detector
+    namespace: "$(var drone_namespace)"
+    output: screen
+    parameters:
+      - algorithm: "yolov8n"
+      - inference_backend: "openvino"  # CPU optimized
+      - confidence_threshold: 0.5
+      - model_path: "/opt/models/yolov8n-openvino"
+    dependencies:
+      - perception
+
+  # ===== LOCAL PLANNER NODE (Nav2) =====
+  - package: nav2_bringup
+    executable: bringup_launch.py
+    name: nav2
+    namespace: "$(var drone_namespace)"
+    output: screen
+    parameters:
+      - autostart: true
+      - params_file: "config/nav2_params.yaml"
+      - use_rviz: false
+    dependencies:
+      - obstacle_detector
+
+  # ===== COMMUNICATION MANAGER =====
+  - package: autonomous_drone_station
+    executable: communication_manager.py
+    name: comm_manager
+    namespace: "$(var drone_namespace)"
+    output: screen
+    parameters:
+      - primary_mode: "5g"      # 5G Quectel
+      - secondary_mode: "lora"  # LoRa SX1262
+      - tertiary_mode: "herelink"
+      - failover_timeout: 5.0
+    remappings:
+      - from: "odometry/filtered"
+        to: "$(var drone_namespace)/odometry/filtered"
+
+  # ===== FLIGHT CONTROLLER BRIDGE (micro-ROS) =====
+  - package: autonomous_drone_station
+    executable: fc_bridge.py
+    name: fc_bridge
+    namespace: "$(var drone_namespace)"
+    output: screen
+    parameters:
+      - fc_type: "cube_orange_plus"
+      - connection: "ethernet"
+      - ros_domain_id: 0
+    dependencies:
+      - comm_manager
+
+  # ===== MISSION MANAGER =====
+  - package: autonomous_drone_station
+    executable: mission_manager.py
+    name: mission_manager
+    namespace: "$(var drone_namespace)"
+    output: screen
+    parameters:
+      - autonomy_level: 2  # 0=manual, 1=assisted, 2=autonomous
+      - max_flight_time: 3600  # seconds
+      - max_distance: 50000  # meters
+      - geofence_enabled: true
+    dependencies:
+      - nav2
+      - fc_bridge
+
+  # ===== FAILSAFE HANDLER =====
+  - package: autonomous_drone_station
+    executable: failsafe_handler.py
+    name: failsafe_handler
+    namespace: "$(var drone_namespace)"
+    output: screen
+    parameters:
+      - battery_critical_voltage: 10.5  # 3S minimum safe
+      - signal_loss_timeout: 30.0
+      - return_to_home_enabled: true
+      - land_on_failsafe: true
+    dependencies:
+      - mission_manager
+      - comm_manager
+
+# ===== GROUND STATION (Jetson AGX ORIN) =====
+ground_station_nodes:
+  - package: autonomous_drone_station
+    executable: global_planner.py
+    name: global_planner
+    output: screen
+    parameters:
+      - algorithm: "rrt_star"  # OMPL-based
+      - planner_timeout: 10.0
+      - max_iterations: 50000
+      - use_gpu: true  # TensorRT on Jetson
+    remappings:
+      - from: "goal_waypoints"
+        to: "planning/goal_waypoints"
+
+  - package: autonomous_drone_station
+    executable: video_processor.py
+    name: video_processor
+    output: screen
+    parameters:
+      - input_resolution: [1280, 720]
+      - inference_backend: "tensorrt"  # GPU-accelerated
+      - model: "yolov8m-tensorrt"
+      - batch_size: 4
+      - enable_tracking: true
+
+  - package: autonomous_drone_station
+    executable: chirpstack_client.py
+    name: chirpstack_client
+    output: screen
+    parameters:
+      - api_url: "http://localhost:8080/api"
+      - device_eui: "0123456789ABCDEF"
+      - update_interval: 5.0
+
+# ===== RVIZ VISUALIZATION (optional) =====
+rviz_config:
+  enabled: false
+  config_file: "config/rviz_config.rviz"

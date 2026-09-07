@@ -1,0 +1,56 @@
+# Autonomous Drone Station - Python Dependencies
+
+# Core ROS 2
+ros2==0.11.0
+rclpy==0.11.0
+geometry-msgs==0.8.0
+sensor-msgs==0.8.0
+mav-msgs==0.0.0
+
+# Navigation & Path Planning
+nav2-core==2.6.0
+nav2-msgs==2.6.0
+nav2-simple-commander==2.6.0
+ompl==1.6.0
+
+# AI & ML
+openvino==2023.2.0
+tensorrt==8.6.0
+torch==2.0.0
+torchvision==0.15.0
+ultralytics==8.0.0  # YOLOv8
+
+# RealSense Camera
+pyrealsense2==2.54.0
+
+# Communication
+paho-mqtt==1.6.1
+rpc==0.6.0
+socket-io==5.9.0
+
+# LoRa & Serial
+pyserial==3.5
+RadioLib==0.1.0
+
+# VPN & Networking
+husarnet==2.0.0
+zeroconf==0.60.0
+paramiko==3.0.0
+
+# Utilities
+numpy==1.24.0
+opencv-python==4.7.0
+pandas==1.5.0
+pyyaml==6.0
+loguru==0.7.0
+click==8.1.0
+
+# Testing
+pytest==7.2.0
+pytest-cov==4.0.0
+pytest-asyncio==0.21.0
+
+# Development
+black==23.0.0
+flake8==6.0.0
+isort==5.12.0
